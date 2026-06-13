@@ -49,42 +49,7 @@ text-align:center;
 transform:translateY(-8px) scale(1.02);
 }
 
-/* Privacy Blur Overlay */
-.privacy-overlay{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:rgba(0,0,0,.95);
-z-index:9999;
-display:flex;
-align-items:center;
-justify-content:center;
-opacity:1;
-transition:opacity .3s ease;
-}
 
-.privacy-overlay.hidden{
-opacity:0;
-pointer-events:none;
-}
-
-.privacy-content{
-text-align:center;
-color:white;
-}
-
-.privacy-icon{
-font-size:4rem;
-margin-bottom:1rem;
-animation:pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-0%, 100% { transform: scale(1); }
-50% { transform: scale(1.1); }
-}
 
 .big-number{
 font-size:2rem;
@@ -990,72 +955,6 @@ function downloadCSV() {
     a.click();
 }
 
-// ============================================================================
-// PRIVACY BLUR DETECTION - Auto-black page when not in focus
-// ============================================================================
-
-class PrivacyBlurManager {
-  constructor() {
-    this.isBlurred = false;
-    this.overlayElement = null;
-    this.dashboardContent = document.getElementById('dashboardContent');
-    this.init();
-  }
-
-  init() {
-    // Create overlay element
-    this.overlayElement = document.createElement('div');
-    this.overlayElement.className = 'privacy-overlay';
-    this.overlayElement.id = 'privacyOverlay';
-    
-    `;
-    document.body.appendChild(this.overlayElement);
-
-    // Add event listeners
-    window.addEventListener('blur', () => this.activate());
-    window.addEventListener('focus', () => this.deactivate());
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.activate();
-      } else {
-        this.deactivate();
-      }
-    });
-
-    console.log('✓ Privacy Blur Protection Activated');
-  }
-
-  activate() {
-    if (this.isBlurred) return;
-    
-    this.isBlurred = true;
-    this.overlayElement.classList.remove('hidden');
-    
-    if (this.dashboardContent) {
-      this.dashboardContent.classList.add('blur-active');
-    }
-    
-    
-  }
-
-  deactivate() {
-    if (!this.isBlurred) return;
-    
-    this.isBlurred = false;
-    this.overlayElement.classList.add('hidden');
-    
-    if (this.dashboardContent) {
-      this.dashboardContent.classList.remove('blur-active');
-    }
-    
-    console.log('✓ PRIVACY MODE: Screen unlocked - content visible');
-  }
-}
-
-// Initialize Privacy Blur Manager when page loads
-document.addEventListener('DOMContentLoaded', () => {
-  new PrivacyBlurManager();
-});
 
 // Run immediately
 getLocation();
