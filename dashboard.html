@@ -1007,13 +1007,7 @@ class PrivacyBlurManager {
     this.overlayElement = document.createElement('div');
     this.overlayElement.className = 'privacy-overlay';
     this.overlayElement.id = 'privacyOverlay';
-    this.overlayElement.innerHTML = `
-      <div class="privacy-content">
-        <div class="privacy-icon">🔒</div>
-        <h2 style="font-size: 2rem; font-weight: bold; margin: 1rem 0;">Privacy Protected</h2>
-        <p style="font-size: 1.1rem; color: #aaa; margin-bottom: 0.5rem;">Your dashboard is hidden</p>
-        <p style="font-size: 0.9rem; color: #888;">Click on this window to continue</p>
-      </div>
+    
     `;
     document.body.appendChild(this.overlayElement);
 
