@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TASC Guard - Login</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Segoe UI',sans-serif;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+
+    background:
+    radial-gradient(circle at top left,#1e3a8a 0%,transparent 30%),
+    radial-gradient(circle at top right,#7c3aed 0%,transparent 30%),
+    linear-gradient(135deg,#020617,#0f172a,#111827);
+}
+
+.login-container{
+    width:420px;
+    padding:35px;
+    background:rgba(255,255,255,.07);
+    backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:22px;
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
+}
+
+.logo{
+    text-align:center;
+    margin-bottom:25px;
+}
+
+.logo h1{
+    font-size:42px;
+    font-weight:800;
+    line-height:1;
+    background:linear-gradient(90deg,#60A5FA,#A78BFA,#22D3EE);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+}
+
+.logo p{
+    color:#cbd5e1;
+    font-size:18px;
+    margin-top:10px;
+}
+
+.input-group{
+    margin-bottom:18px;
+}
+
+.input-group label{
+    display:block;
+    margin-bottom:6px;
+    font-weight:600;
+    color:white;
+}
+
+.input-group input{
+    width:100%;
+    padding:12px;
+    border:1px solid rgba(255,255,255,.2);
+    border-radius:8px;
+    background:rgba(255,255,255,.08);
+    color:white;
+}
+
+.login-btn{
+    width:100%;
+    padding:12px;
+    background:#2563eb;
+    color:white;
+    border:none;
+    border-radius:8px;
+    font-size:16px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.login-btn:hover{
+    background:#1d4ed8;
+}
+
+.divider{
+    text-align:center;
+    margin:20px 0;
+    color:#cbd5e1;
+}
+
+.google-btn{
+    width:100%;
+    padding:12px;
+    background:rgba(255,255,255,.08);
+    color:white;
+    border:1px solid rgba(255,255,255,.2);
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.google-btn:hover{
+    background:rgba(255,255,255,.15);
+}
+
+.error{
+    color:#ef4444;
+    font-size:14px;
+    margin-top:10px;
+    text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="login-container">
+
+    <div class="logo">
+        <h1>TASC Guard</h1>
+        <p>Trusted AI Screen Companion Guard</p>
+    </div>
+
+    <form id="loginForm">
+
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="email" placeholder="Enter email" required>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Enter password" required>
+        </div>
+
+        <button type="submit" class="login-btn">Login</button>
+
+        <div class="divider">OR</div>
+
+        <button type="button" class="google-btn" id="googleLogin">
+    Continue with Google
+</button>
+
+<br><br>
+
+<button type="button" class="google-btn" id="faceLogin">
+    Login with Face ID
+</button>
+
+<video id="faceCamera"
+        autoplay
+        playsinline
+        style="width:100%;margin-top:15px;border-radius:10px;display:none;">
+</video>
+
+<div class="error" id="errorMsg"></div>
+
+    </form>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
+// 🔴 PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+
+// Normal login (your existing logic)
+document.getElementById("loginForm").addEventListener("submit", function(e){
+
+    e.preventDefault();
+
+    let email = document.getElementById("email").value.trim();
+    let password = document.getElementById("password").value.trim();
+    let errorMsg = document.getElementById("errorMsg");
+
+    if(email === ""){
+        errorMsg.innerHTML = "Email required";
+        return;
+    }
+
+    if(password === ""){
+        errorMsg.innerHTML = "Password required";
+        return;
+    }
+
+    errorMsg.innerHTML = "";
+
+    alert("Login Successful!");
+    window.location.href = "dashboard.html";
+});
+
+
+// Google Login (WORKING)
+document.getElementById("googleLogin").addEventListener("click", async () => {
+
+    const provider = new GoogleAuthProvider();
+
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        alert("Welcome " + user.displayName);
+        window.location.href = "dashboard.html";
+
+    } catch (error) {
+        console.error(error);
+        document.getElementById("errorMsg").innerHTML =
+            "Google Sign-In failed. Check Firebase setup.";
+    }
+
+});
+
+</script>
+
+</body>
+</html>
