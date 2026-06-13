@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TASC Guard - AI Dashboard</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+<!-- Load face-api.js from vladmandic CDN (packaged TensorFlow.js bundle) -->
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+font-family:Segoe UI,sans-serif;
+background:
+radial-gradient(circle at top left,#1e3a8a 0%,transparent 30%),
+radial-gradient(circle at top right,#7c3aed 0%,transparent 30%),
+linear-gradient(135deg,#020617,#0f172a,#111827);
+color:white;
+min-height:100vh;
+}
+
+.glass{
+background:rgba(255,255,255,.07);
+backdrop-filter:blur(18px);
+border:1px solid rgba(255,255,255,.15);
+border-radius:22px;
+box-shadow:0 8px 30px rgba(0,0,0,.35);
+}
+
+.title{
+font-size:3rem;
+font-weight:800;
+background:linear-gradient(90deg,#60a5fa,#a78bfa,#22d3ee);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+.cardx{
+transition:.3s;
+padding:25px;
+text-align:center;
+}
+.cardx:hover{
+transform:translateY(-8px) scale(1.02);
+}
+
+/* Privacy Blur Overlay */
+.privacy-overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,.95);
+z-index:9999;
+display:flex;
+align-items:center;
+justify-content:center;
+opacity:1;
+transition:opacity .3s ease;
+}
+
+.privacy-overlay.hidden{
+opacity:0;
+pointer-events:none;
+}
+
+.privacy-content{
+text-align:center;
+color:white;
+}
+
+.privacy-icon{
+font-size:4rem;
+margin-bottom:1rem;
+animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+0%, 100% { transform: scale(1); }
+50% { transform: scale(1.1); }
+}
+
+.big-number{
+font-size:2rem;
+font-weight:700;
+}
+
+.safe{color:#22c55e}
+.risk{color:#ef4444}
+
+table{color:white!important}
+
+.toastx{
+position:fixed;
+top:25px;
+right:25px;
+display:none;
+z-index:9999;
+}
+
+.about-btn{
+background:#2563eb;
+color:white;
+border:none;
+padding:10px 20px;
+border-radius:10px;
+font-weight:600;
+cursor:pointer;
+transition:.3s;
+margin-top:10px;
+}
+
+.about-btn:hover{
+background:#1d4ed8;
+}
+
+/* Transition for bluring sensitive dashboard elements */
+#dashboardContent {
+    transition: filter 0.4s ease-in-out;
+}
+
+.blur-active {
+    filter: blur(25px);
+    pointer-events: none;
+}
+
+/* Styles for the AI Camera panel */
+.webcam-container {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    aspect-ratio: 4/3;
+    margin: 0 auto;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #090d16;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+
+#webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+#webcamOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transform: scaleX(-1);
+}
+
+.pulse-badge {
+    animation: badge-pulse 1.8s infinite alternate;
+}
+
+@keyframes badge-pulse {
+    from { box-shadow: 0 0 2px rgba(255,255,255,0.2); }
+    to { box-shadow: 0 0 10px rgba(96, 165, 250, 0.6); }
+}
+
+.threat-banner {
+    display: none;
+    background: linear-gradient(90deg, #b91c1c, #ef4444, #b91c1c);
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+    animation: flash 1s infinite alternate;
+    z-index: 100;
+}
+
+@keyframes flash {
+    from { opacity: 0.8; transform: scale(0.99); }
+    to { opacity: 1; transform: scale(1.01); }
+}
+
+.capture-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.capture-card {
+    width: 120px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.24);
+}
+
+.capture-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.capture-card-body {
+    padding: 10px;
+    font-size: 0.78rem;
+    line-height: 1.3;
+    color: #e2e8f0;
+}
+
+.capture-card-body strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #60a5fa;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container py-4">
+
+<div class="text-center mb-4">
+<div class="title">TASC Guard</div>
+<p class="text-secondary">Trusted AI Screen Companion Guard </p>
+
+<a href="about.html">
+<button class="about-btn">
+<i class="fa-solid fa-circle-info"></i> About Project
+</button>
+</a>
+<h5 id="clock" class="mt-3"></h5>
+</div>
+
+<!-- Flashing Threat Warning Banner -->
+<div id="threatBanner" class="threat-banner">
+    <i class="fa-solid fa-triangle-exclamation"></i> PRIVACY VIOLATION DETECTED! SCREEN LOCKED & BLURRED.
+</div>
+
+<!-- AI PRIVACY SHIELD CAMERA & CONTROL PANEL -->
+<div class="row g-4 mb-4">
+    <!-- Camera View Column -->
+    <div class="col-md-6">
+        <div class="glass p-4 text-center">
+            <h5 class="mb-3 text-info"><i class="fa-solid fa-camera"></i> Live Shield Camera</h5>
+            <div class="webcam-container">
+                <video id="webcam" autoplay muted playsinline></video>
+                <canvas id="webcamOverlay"></canvas>
+                <div id="cameraLoader" class="position-absolute top-50 start-50 translate-middle text-center">
+                    <div class="spinner-border text-info mb-2" role="status"></div>
+                    <p class="text-info small mb-0">Initializing AI Engine...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Controls Column -->
+    <div class="col-md-6">
+        <div class="glass p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h5 class="mb-3 text-info"><i class="fa-solid fa-gears"></i> Shield Settings</h5>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded bg-dark bg-opacity-50 border border-secondary">
+                    <div>
+                        <h6 class="mb-0">Privacy Shield Status</h6>
+                        <small class="text-secondary" id="shieldStatusText">Starting AI initialization...</small>
+                    </div>
+                    <span id="shieldStatusBadge" class="badge bg-secondary p-2 pulse-badge">LOADING</span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Intruder Sensitivity (Match Threshold)</span>
+                        <span id="thresholdVal" class="text-info font-monospace">0.55</span>
+                    </label>
+                    <input type="range" class="form-range" id="thresholdSlider" min="0.30" max="0.80" step="0.05" value="0.55">
+                    <small class="text-secondary d-block mt-1">Lower = stricter validation (less matching margin, more secure).</small>
+                </div>
+
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="blurOnShoulderSurf" checked>
+                    <label class="form-check-label" for="blurOnShoulderSurf">Blur on Shoulder Surfing (Multiple People)</label>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="blurOnIntruder" checked>
+                    <label class="form-check-label" for="blurOnIntruder">Blur on Unregistered Face (Intruder)</label>
+                </div>
+            </div>
+
+            <div>
+                <div class="d-flex gap-2 mb-2">
+                    <button id="registerFaceBtn" class="btn btn-primary flex-grow-1" onclick="registerOwnerFace()" disabled>
+                        <i class="fa-solid fa-user-plus"></i> Register Owner Face
+                    </button>
+                    <button id="resetFaceBtn" class="btn btn-outline-danger" onclick="resetOwnerFace()" disabled>
+                        <i class="fa-solid fa-trash-can"></i> Reset
+                    </button>
+                </div>
+                <div class="text-center">
+                    <small class="text-secondary font-monospace" id="registeredStatus">Owner Profile: Not Registered</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SENSITIVE CONTENT AREA -->
+<div id="dashboardContent">
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="glass cardx">
+                <i class="fa-solid fa-triangle-exclamation fa-2x text-danger mb-2"></i>
+                <h6>Total Threats</h6>
+                <div class="big-number" id="totalAlerts">0</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass cardx">
+                <i class="fa-solid fa-shield-halved fa-2x text-success mb-2"></i>
+                <h6>System Status</h6>
+                <div class="big-number safe" id="systemStatus">SAFE</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass cardx">
+                <i class="fa-solid fa-location-dot fa-2x text-info mb-2"></i>
+                <h6>Location</h6>
+                <small id="locationText" class="d-block text-truncate">Detecting...</small>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass cardx">
+                <i class="fa-solid fa-user-secret fa-2x text-warning mb-2"></i>
+                <h6>Protection</h6>
+                <div class="big-number">ACTIVE</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass p-4 mt-4">
+        <h5 class="mb-3 text-info"><i class="fa-solid fa-camera-retro"></i> Recent Peeking Captures</h5>
+        <div id="captureGallery" class="capture-gallery">
+            <!-- Captured peeking images will appear here -->
+        </div>
+    </div>
+
+    <!-- Logs and actions table section -->
+    <div class="glass p-4 mt-4">
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-danger" onclick="simulateThreat()"><i class="fa-solid fa-bell"></i> Simulate Threat</button>
+            <button class="btn btn-success" onclick="downloadCSV()"><i class="fa-solid fa-file-csv"></i> Export Logs</button>
+        </div>
+
+        <input class="form-control mt-3" id="searchBox" placeholder="Search incidents..." onkeyup="searchLogs()">
+
+        <div class="table-responsive mt-3">
+            <table class="table table-dark table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>Status</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="logTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- Toast overlay -->
+<div class="alert alert-danger toastx" id="toastAlert">
+⚠ Privacy Threat Detected! Protection Activated.
+</div>
+
+<script>
+// Retrieve logs
+let logs = JSON.parse(localStorage.getItem("incidentLogs")) || [];
+window.currentAddress = "Detecting...";
+
+// Update the clock
+setInterval(() => {
+    document.getElementById("clock").innerHTML = new Date().toLocaleString();
+}, 1000);
+
+// Live Location tracking handle
+let watchId = null;
+
+// Instant & Live Location retrieval
+async function getLocation() {
+    if (!navigator.geolocation) {
+        fallbackToIPLocation();
+        return;
+    }
+    
+    document.getElementById("locationText").innerText = "Requesting Access...";
+    
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+    }
+    
+    // Watch position changes live
+    watchId = navigator.geolocation.watchPosition(async (pos) => {
+        let lat = pos.coords.latitude;
+        let lon = pos.coords.longitude;
+        
+        // Render coordinates immediately
+        document.getElementById("locationText").innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        window.currentAddress = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        
+        try {
+            // Geocode in background
+            let r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            let d = await r.json();
+            window.currentAddress = d.display_name;
+            document.getElementById("locationText").innerText = d.display_name;
+        } catch {
+            // Fallback stays as coordinates
+        }
+    }, (err) => {
+        console.warn("Geolocation watch failed/denied, trying IP fallback: ", err);
+        fallbackToIPLocation();
+    }, {
+        enableHighAccuracy: false, // Set to false to avoid GPS hardware timeout on desktop browsers
+        timeout: 8000,
+        maximumAge: 10000 // allow cached location up to 10s old for efficiency
+    });
+}
+
+async function fallbackToIPLocation() {
+    document.getElementById("locationText").innerText = "Detecting via IP...";
+    
+    // Fallback 1: Geolocation DB (Fast, HTTPS, CORS, No key)
+    try {
+        let response = await fetch('https://geolocation-db.com/json/');
+        let data = await response.json();
+        if (data && data.city) {
+            let addr = `${data.city}, ${data.state || data.country_name || ''}`;
+            window.currentAddress = addr;
+            document.getElementById("locationText").innerText = addr;
+            return;
+        }
+    } catch (e) {
+        console.warn("GeolocationDB fallback failed: ", e);
+    }
+
+    // Fallback 2: Free IP API
+    try {
+        let response = await fetch('https://freeipapi.com/api/json');
+        let data = await response.json();
+        if (data && data.cityName) {
+            let addr = `${data.cityName}, ${data.regionName}, ${data.countryName}`;
+            window.currentAddress = addr;
+            document.getElementById("locationText").innerText = addr;
+            return;
+        }
+    } catch (e) {
+        console.warn("FreeIPAPI fallback failed: ", e);
+    }
+
+    // Fallback 3: ipapi.co
+    try {
+        let response = await fetch('https://ipapi.co/json/');
+        let data = await response.json();
+        if (data && data.city) {
+            let addr = `${data.city}, ${data.region}, ${data.country_name}`;
+            window.currentAddress = addr;
+            document.getElementById("locationText").innerText = addr;
+            return;
+        }
+    } catch (e) {
+        console.warn("ipapi.co fallback failed: ", e);
+    }
+
+    // Default if everything fails
+    window.currentAddress = "Location Unavailable";
+    document.getElementById("locationText").innerText = "Location Unavailable";
+}
+
+// Global elements
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('webcamOverlay');
+const ctx = canvas.getContext('2d');
+let isChecking = false;
+let lastLogTime = 0;
+let lastCaptureTime = 0;
+const CAPTURE_DEBOUNCE_MS = 10000;
+let captureHistory = JSON.parse(localStorage.getItem('captureHistory')) || [];
+
+// Update Status helper
+function updateShieldStatus(text, badgeClass) {
+    const textEl = document.getElementById('shieldStatusText');
+    const badgeEl = document.getElementById('shieldStatusBadge');
+    
+    textEl.innerText = text;
+    badgeEl.className = `badge p-2 pulse-badge ${badgeClass}`;
+    badgeEl.innerText = badgeClass.includes('danger') ? 'WARNING' : (badgeClass.includes('success') ? 'ACTIVE' : 'STANDBY');
+}
+
+// Load face-api AI models from CDN
+async function loadModels() {
+    updateShieldStatus("Loading AI face detection models...", "bg-warning text-dark");
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+    try {
+        await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+            faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        
+        updateShieldStatus("Models loaded. Starting webcam...", "bg-warning text-dark");
+        const videoStarted = await initCamera();
+        
+        if (videoStarted) {
+            updateShieldStatus("Shield Active", "bg-success");
+            document.getElementById('registerFaceBtn').removeAttribute('disabled');
+            
+            // Check if profile exists
+            if (localStorage.getItem('ownerDescriptor')) {
+                document.getElementById('resetFaceBtn').removeAttribute('disabled');
+                document.getElementById('registeredStatus').innerText = "Owner Profile: Registered";
+            } else {
+                document.getElementById('registeredStatus').innerText = "Owner Profile: Not Registered";
+            }
+            
+            startCheckingLoop();
+        }
+    } catch (err) {
+        console.error("AI Model Loading Error: ", err);
+        updateShieldStatus("Failed loading AI model files", "bg-danger");
+        document.getElementById('cameraLoader').innerHTML = `
+            <i class="fa-solid fa-circle-exclamation text-danger fa-2x mb-2"></i>
+            <p class="text-danger small mb-0"><strong>Engine Error</strong></p>
+            <p class="text-danger small mb-2">Check your internet connection and reload the page.</p>
+            <small class="text-secondary">If error persists, try: 1) Reload page, 2) Check network, 3) Clear cache</small>
+        `;
+    }
+}
+
+// Access webcam and map stream to video element
+async function initCamera() {
+    try {
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("Camera API not supported");
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user'
+            },
+            audio: false
+        });
+        
+        video.srcObject = stream;
+        
+        return new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                video.play().catch(err => {
+                    console.error("Video play error:", err);
+                });
+                
+                // Align canvas resolution with video stream
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                document.getElementById('cameraLoader').style.display = 'none';
+                resolve(true);
+            };
+        });
+    } catch (err) {
+        console.error("Webcam Init Error: ", err);
+        let errorMsg = "Webcam Permission Denied";
+        let errorDetails = "Please grant camera permission in browser settings.";
+        
+        if (err.name === "NotAllowedError") {
+            errorMsg = "Camera Access Blocked";
+            errorDetails = "Allow camera access in your browser permissions.";
+        } else if (err.name === "NotFoundError") {
+            errorMsg = "No Camera Found";
+            errorDetails = "Please connect a camera to your device.";
+        } else if (err.name === "NotReadableError") {
+            errorMsg = "Camera In Use";
+            errorDetails = "Camera is being used by another application.";
+        } else if (err.name === "SecurityError") {
+            errorMsg = "HTTPS Required";
+            errorDetails = "Camera access requires a secure connection (HTTPS).";
+        }
+        
+        document.getElementById('cameraLoader').innerHTML = `
+            <i class="fa-solid fa-video-slash text-danger fa-2x mb-2"></i>
+            <p class="text-danger small mb-0"><strong>${errorMsg}</strong></p>
+            <p class="text-danger small mb-2">${errorDetails}</p>
+            <small class="text-secondary">Check browser permissions or try reloading.</small>
+        `;
+        updateShieldStatus(errorMsg, "bg-danger");
+        return false;
+    }
+}
+
+// Periodic face checking loop
+function startCheckingLoop() {
+    setInterval(async () => {
+        if (isChecking) return;
+        isChecking = true;
+        try {
+            await performFaceDetection();
+        } catch (e) {
+            console.error("Check Error: ", e);
+        }
+        isChecking = false;
+    }, 150); // ~7 frames per second (very low CPU usage but highly responsive)
+}
+
+// Generate synthesizer sound beeps for intruder warning
+function warningBeep() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(950, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    } catch (err) {
+        console.error("Audio beep error: ", err);
+    }
+}
+
+// Face scanning and verification implementation
+async function performFaceDetection() {
+    if (video.paused || video.ended) return;
+
+    // Run tiny detector
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+
+    // Clear previous drawing frames
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const matchThreshold = parseFloat(document.getElementById('thresholdSlider').value);
+    const blurOnShoulder = document.getElementById('blurOnShoulderSurf').checked;
+    const blurOnIntruder = document.getElementById('blurOnIntruder').checked;
+
+    let shouldBlur = false;
+    let threatName = "";
+    let systemStatusText = "Shield Guard Active";
+    let systemBadgeClass = "bg-success";
+
+    // Load registered descriptor
+    const savedDescStr = localStorage.getItem('ownerDescriptor');
+    let savedDescriptor = null;
+    if (savedDescStr) {
+        savedDescriptor = new Float32Array(JSON.parse(savedDescStr));
+    }
+
+    if (detections.length > 0) {
+        // Draw normal target scan indicator boxes
+        detections.forEach(det => {
+            const box = det.detection.box;
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+            ctx.fillStyle = '#60a5fa';
+            ctx.font = '13px Segoe UI';
+            ctx.fillText('Scanning...', box.x, box.y > 15 ? box.y - 5 : 15);
+        });
+
+        // Test shoulder surfing scenario
+        if (detections.length > 1 && blurOnShoulder) {
+            shouldBlur = true;
+            threatName = "SHOULDER SURFING";
+            systemStatusText = "THREAT: Shoulder Surfing Detected!";
+            systemBadgeClass = "bg-danger";
+            
+            // Draw visual alert boxes in red
+            detections.forEach(det => {
+                const box = det.detection.box;
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillText('WARNING: Shoulder Surfer', box.x, box.y > 15 ? box.y - 5 : 15);
+            });
+        }
+        // Test intruder check (single face verification)
+        else if (detections.length === 1) {
+            const detectedFace = detections[0];
+            const box = detectedFace.detection.box;
+
+            if (savedDescriptor) {
+                const distance = faceapi.euclideanDistance(detectedFace.descriptor, savedDescriptor);
+                
+                if (distance > matchThreshold) {
+                    if (blurOnIntruder) {
+                        shouldBlur = true;
+                        threatName = "INTRUDER DETECTED";
+                        systemStatusText = "THREAT: Unregistered Face Present";
+                        systemBadgeClass = "bg-danger";
+                        
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(box.x, box.y, box.width, box.height);
+                        ctx.fillStyle = '#ef4444';
+                        ctx.fillText(`Intruder Detected (${(distance * 100).toFixed(0)}%)`, box.x, box.y > 15 ? box.y - 5 : 15);
+                    } else {
+                        systemStatusText = "Intruder Detected (No Lock)";
+                        systemBadgeClass = "bg-warning text-dark";
+                        ctx.strokeStyle = '#f59e0b';
+                        ctx.strokeRect(box.x, box.y, box.width, box.height);
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.fillText('Unrecognized Face', box.x, box.y > 15 ? box.y - 5 : 15);
+                    }
+                } else {
+                    systemStatusText = "Owner Verified";
+                    systemBadgeClass = "bg-success";
+                    ctx.strokeStyle = '#10b981';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(box.x, box.y, box.width, box.height);
+                    ctx.fillStyle = '#10b981';
+                    ctx.fillText(`Owner Detected (${((1 - distance)*100).toFixed(0)}%)`, box.x, box.y > 15 ? box.y - 5 : 15);
+                }
+            } else {
+                systemStatusText = "Owner Profile Not Registered";
+                systemBadgeClass = "bg-warning text-dark";
+                ctx.strokeStyle = '#a78bfa';
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+                ctx.fillStyle = '#a78bfa';
+                ctx.fillText('Register Face', box.x, box.y > 15 ? box.y - 5 : 15);
+            }
+        }
+    } else {
+        systemStatusText = "Shield Guard Active";
+        systemBadgeClass = "bg-success";
+    }
+
+    updateShieldStatus(systemStatusText, systemBadgeClass);
+
+    const mainContainer = document.getElementById('dashboardContent');
+    const threatBanner = document.getElementById('threatBanner');
+    const toastAlert = document.getElementById('toastAlert');
+    const systemStatusCard = document.getElementById('systemStatus');
+
+    if (shouldBlur) {
+        mainContainer.classList.add('blur-active');
+        threatBanner.style.display = 'block';
+        threatBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> PRIVACY ALERT: ${threatName} DETECTED! SCREEN BLURRED.`;
+        
+        toastAlert.style.display = 'block';
+        toastAlert.innerText = `⚠ Privacy Threat Detected: ${threatName}! Shield Activated.`;
+        
+        systemStatusCard.innerText = "RISK";
+        systemStatusCard.className = "big-number risk";
+
+        // Capture evidence image for shoulder surfing threat
+        if (threatName === 'SHOULDER SURFING') {
+            const now = Date.now();
+            if (now - lastCaptureTime > CAPTURE_DEBOUNCE_MS) {
+                saveCaptureImage(detections, 'Shoulder Surfing');
+                lastCaptureTime = now;
+            }
+        }
+
+        // Record incident (debounced)
+        const now = Date.now();
+        if (now - lastLogTime > 12000) { // Limit logging and audio warning to once every 12 seconds
+            recordThreatLog(threatName, threatName === 'SHOULDER SURFING');
+            warningBeep();
+            lastLogTime = now;
+        }
+    } else {
+        mainContainer.classList.remove('blur-active');
+        threatBanner.style.display = 'none';
+        toastAlert.style.display = 'none';
+        
+        systemStatusCard.innerText = "SAFE";
+        systemStatusCard.className = "big-number safe";
+    }
+}
+
+// Write detected threat directly to history and render
+function recordThreatLog(actionType, imageCaptured = false) {
+    let n = new Date();
+    logs.push({
+        date: n.toLocaleDateString(),
+        day: n.toLocaleDateString('en-US', { weekday: 'long' }),
+        time: n.toLocaleTimeString(),
+        location: window.currentAddress || document.getElementById("locationText").innerText || "Detecting...",
+        status: "RISK DETECTED",
+        action: actionType + " SHIELD ACTIVATED" + (imageCaptured ? " / IMAGE CAPTURED" : "")
+    });
+    localStorage.setItem("incidentLogs", JSON.stringify(logs));
+    loadLogs();
+}
+
+function saveCaptureImage(detections, captureType) {
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = video.videoWidth || 640;
+    captureCanvas.height = video.videoHeight || 480;
+    const captureCtx = captureCanvas.getContext('2d');
+
+    // Draw the current video frame
+    captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+    // Draw detection boxes on the captured image
+    if (detections && detections.length) {
+        captureCtx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
+        captureCtx.lineWidth = 4;
+        captureCtx.font = '18px Segoe UI';
+        captureCtx.fillStyle = 'rgba(239, 68, 68, 0.95)';
+        detections.forEach(det => {
+            const box = det.detection.box;
+            captureCtx.strokeRect(box.x, box.y, box.width, box.height);
+            captureCtx.fillText('Peeking Detected', box.x + 4, Math.max(box.y - 8, 18));
+        });
+    }
+
+    const imageData = captureCanvas.toDataURL('image/png');
+    const timestamp = new Date();
+    captureHistory.unshift({
+        image: imageData,
+        type: captureType,
+        date: timestamp.toLocaleDateString(),
+        time: timestamp.toLocaleTimeString()
+    });
+    if (captureHistory.length > 6) captureHistory.pop();
+    localStorage.setItem('captureHistory', JSON.stringify(captureHistory));
+    renderCaptureGallery();
+}
+
+function renderCaptureGallery() {
+    const gallery = document.getElementById('captureGallery');
+    gallery.innerHTML = '';
+    if (!captureHistory.length) {
+        gallery.innerHTML = '<div class="text-secondary">No peeking captures yet.</div>';
+        return;
+    }
+    captureHistory.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'capture-card';
+        card.innerHTML = `
+            <img src="${item.image}" alt="${item.type} capture">
+            <div class="capture-card-body">
+                <strong>${item.type}</strong>
+                <div>${item.date}</div>
+                <div>${item.time}</div>
+            </div>
+        `;
+        gallery.appendChild(card);
+    });
+}
+
+// Register owner's face profile
+async function registerOwnerFace() {
+    if (video.paused || video.ended) {
+        alert("Webcam is not ready.");
+        return;
+    }
+
+    const regBtn = document.getElementById('registerFaceBtn');
+    regBtn.disabled = true;
+    regBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Scanning...';
+
+    // Small delay to let user stabilize pose
+    setTimeout(async () => {
+        try {
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (detection) {
+                const descriptor = Array.from(detection.descriptor);
+                localStorage.setItem('ownerDescriptor', JSON.stringify(descriptor));
+                
+                document.getElementById('resetFaceBtn').removeAttribute('disabled');
+                document.getElementById('registeredStatus').innerText = "Owner Profile: Registered";
+                alert("Owner face profile registered successfully!");
+            } else {
+                alert("Face not detected. Look directly at the camera and try again.");
+            }
+        } catch (e) {
+            console.error("Face registration error:", e);
+            alert("Error reading face characteristics. Try again.");
+        } finally {
+            regBtn.disabled = false;
+            regBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Register Owner Face';
+        }
+    }, 1000);
+}
+
+// Reset owner profile
+function resetOwnerFace() {
+    if (confirm("Are you sure you want to clear your registered face profile?")) {
+        localStorage.removeItem('ownerDescriptor');
+        document.getElementById('resetFaceBtn').disabled = true;
+        document.getElementById('registeredStatus').innerText = "Owner Profile: Not Registered";
+        alert("Owner face profile deleted.");
+    }
+}
+
+// Sync sensitivity slider value text
+document.getElementById('thresholdSlider').addEventListener('input', (e) => {
+    document.getElementById('thresholdVal').innerText = e.target.value;
+});
+
+// Load records into UI table
+function loadLogs() {
+    let t = document.getElementById("logTable");
+    t.innerHTML = "";
+    logs.forEach((x, i) => {
+        let statusText = x.status || "RISK DETECTED";
+        let statusBadge = (statusText && statusText.includes('SAFE')) ? 'bg-success' : 'bg-danger';
+        t.innerHTML += `<tr>
+            <td>${i + 1}</td>
+            <td>${x.date || ''}</td>
+            <td>${x.day || ''}</td>
+            <td>${x.time || ''}</td>
+            <td>${x.location || 'Unknown'}</td>
+            <td><span class="badge ${statusBadge}">${statusText}</span></td>
+            <td>${x.action || ''}</td>
+        </tr>`;
+    });
+    document.getElementById("totalAlerts").innerText = logs.length;
+}
+
+// Standard manual simulation (mock test)
+function simulateThreat() {
+    let n = new Date();
+    logs.push({
+        date: n.toLocaleDateString(),
+        day: n.toLocaleDateString('en-US', { weekday: 'long' }),
+        time: n.toLocaleTimeString(),
+        location: window.currentAddress || document.getElementById("locationText").innerText,
+        status: "RISK DETECTED",
+        action: "SCREEN BLUR ACTIVATED (SIMULATED)"
+    });
+    localStorage.setItem("incidentLogs", JSON.stringify(logs));
+    
+    document.getElementById("systemStatus").innerText = "RISK";
+    document.getElementById("systemStatus").className = "big-number risk";
+    document.getElementById("toastAlert").style.display = "block";
+    warningBeep();
+    
+    setTimeout(() => {
+        document.getElementById("toastAlert").style.display = "none";
+        document.getElementById("systemStatus").innerText = "SAFE";
+        document.getElementById("systemStatus").className = "big-number safe";
+    }, 4000);
+    loadLogs();
+}
+
+// Incident logs filtering
+function searchLogs() {
+    let v = document.getElementById("searchBox").value.toLowerCase();
+    document.querySelectorAll("#logTable tr").forEach(r => {
+        r.style.display = r.innerText.toLowerCase().includes(v) ? "" : "none";
+    });
+}
+
+// CSV export
+function downloadCSV() {
+    let csv = "Date,Day,Time,Location,Status,Action\n";
+    logs.forEach(x => csv += `${x.date},${x.day},${x.time},${x.location},${x.status},${x.action}\n`);
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = "TASC_Guard_Logs.csv";
+    a.click();
+}
+
+// ============================================================================
+// PRIVACY BLUR DETECTION - Auto-black page when not in focus
+// ============================================================================
+
+class PrivacyBlurManager {
+  constructor() {
+    this.isBlurred = false;
+    this.overlayElement = null;
+    this.dashboardContent = document.getElementById('dashboardContent');
+    this.init();
+  }
+
+  init() {
+    // Create overlay element
+    this.overlayElement = document.createElement('div');
+    this.overlayElement.className = 'privacy-overlay';
+    this.overlayElement.id = 'privacyOverlay';
+    this.overlayElement.innerHTML = `
+      <div class="privacy-content">
+        <div class="privacy-icon">🔒</div>
+        <h2 style="font-size: 2rem; font-weight: bold; margin: 1rem 0;">Privacy Protected</h2>
+        <p style="font-size: 1.1rem; color: #aaa; margin-bottom: 0.5rem;">Your dashboard is hidden</p>
+        <p style="font-size: 0.9rem; color: #888;">Click on this window to continue</p>
+      </div>
+    `;
+    document.body.appendChild(this.overlayElement);
+
+    // Add event listeners
+    window.addEventListener('blur', () => this.activate());
+    window.addEventListener('focus', () => this.deactivate());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.activate();
+      } else {
+        this.deactivate();
+      }
+    });
+
+    console.log('✓ Privacy Blur Protection Activated');
+  }
+
+  activate() {
+    if (this.isBlurred) return;
+    
+    this.isBlurred = true;
+    this.overlayElement.classList.remove('hidden');
+    
+    if (this.dashboardContent) {
+      this.dashboardContent.classList.add('blur-active');
+    }
+    
+    console.log('🔒 PRIVACY MODE: Screen locked - content blurred');
+  }
+
+  deactivate() {
+    if (!this.isBlurred) return;
+    
+    this.isBlurred = false;
+    this.overlayElement.classList.add('hidden');
+    
+    if (this.dashboardContent) {
+      this.dashboardContent.classList.remove('blur-active');
+    }
+    
+    console.log('✓ PRIVACY MODE: Screen unlocked - content visible');
+  }
+}
+
+// Initialize Privacy Blur Manager when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  new PrivacyBlurManager();
+});
+
+// Run immediately
+getLocation();
+loadModels();
+loadLogs();
+renderCaptureGallery();
+</script>
+
+</body>
+</html>
